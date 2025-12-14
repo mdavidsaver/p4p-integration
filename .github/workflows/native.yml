@@ -1,0 +1,87 @@
+name: Native
+on: [push, pull_request, workflow_dispatch]
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            py: "3.8"
+            arch: win_amd64
+
+          - os: macos-latest
+            py: "3.8"
+            arch: macosx_11_0_universal2
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/checkout@v6
+        with:
+            repository: epics-base/setuptools_dso
+            path: setuptools_dso
+
+      - uses: actions/checkout@v6
+        with:
+            repository: epics-base/epicscorelibs
+            path: epicscorelibs
+            submodules: true
+
+      - uses: actions/checkout@v6
+        with:
+            repository: epics-base/pvxs
+            path: pvxs
+            submodules: true
+
+      - uses: actions/checkout@v6
+        with:
+            repository: epics-base/p4p
+            path: p4p
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.py }}
+
+      - name: Prepare
+        run: python -m pip install -U pip virtualenv
+
+      - run: pip debug -v
+
+      - name: Build
+        run: |
+            set -x -e
+            python -m pip install -U pip virtualenv
+            pip download -d wheels \
+                --only-binary numpy \
+                --only-binary Cython \
+                Cython setuptools wheel numpy ply nose2
+
+            export SETUPTOOLS_DSO_PLAT_NAME=${{ matrix.arch }}
+
+            (cd setuptools_dso && python setup.py sdist -d ../wheels )
+            pip wheel -w ./wheels --no-index -f ./wheels setuptools_dso
+            pip install --no-index -f ./wheels --only-binary setuptools_dso setuptools_dso
+
+            (cd epicscorelibs && python setup.py sdist -d ../wheels )
+            pip wheel -w ./wheels --no-index -f ./wheels epicscorelibs
+            pip install --no-index -f ./wheels --only-binary epicscorelibs epicscorelibs
+
+            (cd pvxs && python setup.py sdist -d ../wheels )
+            pip wheel -w ./wheels --no-index -f ./wheels pvxslibs
+            pip install --no-index -f ./wheels --only-binary pvxslibs pvxslibs
+
+            (cd p4p && python setup.py sdist -d ../wheels )
+            pip wheel -w ./wheels --no-index -f ./wheels p4p
+            pip install --no-index -f ./wheels --only-binary p4p p4p
+
+            pip install --no-index -f ./wheels nose2
+            python -m nose2 -v epicscorelibs pvxslibs p4p
+
+      - run: ls -lhtr wheels

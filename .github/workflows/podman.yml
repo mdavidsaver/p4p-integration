@@ -1,0 +1,110 @@
+name: Podman
+on: [push, pull_request, workflow_dispatch]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        # see compat matrix: https://github.com/pypa/manylinux
+
+        - ml: manylinux1_x86_64
+          py: cp27-cp27m
+          cy: "Cython<3.0"
+
+        - ml: manylinux2010_x86_64
+          py: cp37-cp37m
+
+        - ml: manylinux2014_x86_64
+          py: cp38-cp38
+
+        - ml: manylinux2014_x86_64
+          py: cp39-cp39
+
+        - ml: manylinux2014_x86_64
+          py: cp310-cp310
+
+        - ml: manylinux2014_x86_64
+          py: cp311-cp311
+
+        - ml: manylinux2014_x86_64
+          py: cp312-cp312
+
+        - ml: manylinux2014_x86_64
+          py: cp313-cp313
+
+        - ml: manylinux2014_x86_64
+          py: cp313-cp313t
+
+        - ml: manylinux_2_28
+          py: cp314-cp314
+
+        - ml: manylinux_2_28
+          py: cp314-cp314t
+          src: 1
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build
+        run: |
+          mkdir output
+          podman build \
+            -v $PWD/output:/root/wheels \
+            --build-arg ML=${{ matrix.ml }} \
+            --build-arg PY=${{ matrix.py }} \
+            --build-arg CY="${{ matrix.cy || 'Cython' }}" \
+            -t foo \
+            .
+
+      - name: Result
+        run: ls -lhtr output
+
+      - name: Save wheels
+        uses: actions/upload-artifact@v6
+        with:
+          retention-days: 1
+          name: whl-${{ matrix.py }}
+          path: |
+           output/setuptools_dso*.whl
+           output/epicscorelibs*.whl
+           output/pvxslibs*.whl
+           output/p4p*.whl
+
+      - name: Save source
+        if: ${{ matrix.src }}
+        uses: actions/upload-artifact@v6
+        with:
+          retention-days: 1
+          name: whl-source
+          path: |
+           output/setuptools_dso*.gz
+           output/epicscorelibs*.gz
+           output/pvxslibs*.gz
+           output/p4p*.gz
+
+
+  combine:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Download
+        uses: actions/download-artifact@v7
+        with:
+            merge-multiple: true
+
+      - run: ls -lhtr
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: 3.11
+
+      - name: Setup
+        run: |
+          pip install -U pip twine
+          python -m twine -h
+
+      - name: Check
+        run: twine check *
