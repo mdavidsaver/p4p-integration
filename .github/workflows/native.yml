@@ -16,8 +16,54 @@ jobs:
             py: "3.8"
             arch: win_amd64
 
+          # windows + 3.9 omitted due to numpy bug "invalid preprocessor command 'warning'"
+
+          - os: windows-latest
+            py: "3.10"
+            arch: win_amd64
+
+          - os: windows-latest
+            py: "3.11"
+            arch: win_amd64
+
+          - os: windows-latest
+            py: "3.12"
+            arch: win_amd64
+
+          - os: windows-latest
+            py: "3.13"
+            arch: win_amd64
+
+          - os: windows-latest
+            py: "3.14"
+            arch: win_amd64
+
           - os: macos-latest
             py: "3.8"
+            arch: macosx_11_0_universal2
+
+          - os: macos-latest
+            py: "3.9"
+            arch: macosx_11_0_universal2
+
+          - os: macos-latest
+            py: "3.10"
+            arch: macosx_11_0_universal2
+
+          - os: macos-latest
+            py: "3.11"
+            arch: macosx_11_0_universal2
+
+          - os: macos-latest
+            py: "3.12"
+            arch: macosx_11_0_universal2
+
+          - os: macos-latest
+            py: "3.13"
+            arch: macosx_11_0_universal2
+
+          - os: macos-latest
+            py: "3.14"
             arch: macosx_11_0_universal2
 
     steps:
@@ -62,6 +108,8 @@ jobs:
                 --only-binary numpy \
                 --only-binary Cython \
                 Cython setuptools wheel numpy ply nose2
+
+            pip install --no-index -f ./wheels setuptools
 
             export SETUPTOOLS_DSO_PLAT_NAME=${{ matrix.arch }}
 
